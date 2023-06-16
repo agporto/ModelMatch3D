@@ -393,7 +393,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
 
     else:
       self.ui.sourceModelMultiSelector.filters  = ctk.ctkPathLineEdit().Files
-      self.ui.sourceModelMultiSelector.nameFilters  = ["*.ply *.obj *.vtk"]
+      self.ui.sourceModelMultiSelector.nameFilters  = ["*.ply *.obj *.vtk *.stl"]
       self.ui.sourceModelMultiSelector.toolTip = "Select the query model"
 
 
