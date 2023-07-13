@@ -23,7 +23,7 @@ BiteID is a 3D Slicer module that enables individual identification based on 3D 
 
 3. **Add the cloned repository**: In the Extension Wizard, there should be an option to add a new extension from a local directory. Select this, then navigate to the directory where you cloned the BiteID repository.
 
-4. **Configure and generate the extension**: The Extension Wizard will examine the contents of the repository and should provide you with a list of options to configure the build. Once you have made any necessary changes, click the 'Add Module to Extension' button
+4. **Configure and generate the extension**: The Extension Wizard will examine the contents of the repository and should provide you with a list of options to configure the build. 
 
 Please note that the module is currently available under the 'Examples'. This will be changed in the future.
 
