@@ -220,7 +220,7 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="0" colspan="2">
+          <item row="3" column="0" colspan="2">
            <spacer name="verticalSpacer">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
@@ -233,7 +233,42 @@
             </property>
            </spacer>
           </item>
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="signedDistanceCheckBox">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Display heatmap</string>
+            </property>
+           </widget>
+          </item>
          </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="qSlicerMarkupsPlaceWidget" name="rulerWidget">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="buttonsVisible">
+          <bool>false</bool>
+         </property>
+         <property name="deleteAllControlPointsOptionVisible">
+          <bool>true</bool>
+         </property>
+         <property name="unsetLastControlPointOptionVisible">
+          <bool>false</bool>
+         </property>
+         <property name="placeMultipleMarkups">
+          <enum>qSlicerMarkupsPlaceWidget::ForcePlaceSingleMarkup</enum>
+         </property>
+         <property name="currentNodeActive">
+          <bool>false</bool>
+         </property>
+         <property name="placeModeEnabled">
+          <bool>false</bool>
+         </property>
         </widget>
        </item>
       </layout>
@@ -300,6 +335,9 @@
            <widget class="ctkPathLineEdit" name="sourceModelMultiSelector">
             <property name="toolTip">
              <string>Select the source model</string>
+            </property>
+            <property name="filters">
+             <set>ctkPathLineEdit::Executable|ctkPathLineEdit::Files|ctkPathLineEdit::NoDot|ctkPathLineEdit::NoDotDot|ctkPathLineEdit::Readable</set>
             </property>
             <property name="nameFilters">
              <stringlist>
@@ -632,6 +670,17 @@
    <extends>QWidget</extends>
    <header>qMRMLWidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>qSlicerWidget</class>
+   <extends>QWidget</extends>
+   <header>qSlicerWidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>qSlicerMarkupsPlaceWidget</class>
+   <extends>qSlicerWidget</extends>
+   <header>qSlicerMarkupsPlaceWidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

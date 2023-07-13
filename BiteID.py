@@ -46,7 +46,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     # Ensure that correct version of open3d Python package is installed
     needRestart = False
     needInstall = False
-    Open3dVersion = "0.17"
+    Open3dVersion = "0.17" if slicer.app.os != "macosx" else "0.16.1"
     try:
       import open3d as o3d
       from packaging import version
@@ -90,6 +90,8 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     self.setCheckboxStyle(self.ui.showTargetModelCheckBox)
     self.ui.showSourceModelCheckBox.connect('toggled(bool)', self.onshowSourceModelCheckBox)
     self.setCheckboxStyle(self.ui.showSourceModelCheckBox)
+    self.ui.signedDistanceCheckBox.connect('toggled(bool)', self.onshowSignedDistanceMapCheckBox)
+    self.setCheckboxStyle(self.ui.signedDistanceCheckBox)
 
 
     # Advanced Settings connections
@@ -121,7 +123,8 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
       "ICPDistanceThreshold"  : self.ui.ICPDistanceThresholdSlider.value,
       }
     #Set up table
-    self.tableNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLTableNode')
+    #self.tableNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLTableNode')
+    self.tableNode = slicer.vtkMRMLTableNode()
     # Add columns to the table
     self.tableNode.AddColumn().SetName('Query')
     self.tableNode.AddColumn().SetName('Reference')
@@ -135,6 +138,14 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     self.ui.potentialMatches.resizeColumnsToContents()
     self.ui.potentialMatches.horizontalHeader().setSectionResizeMode(qt.QHeaderView.Stretch)
 
+    lineNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', "L")
+    self.ui.rulerWidget.placeButton().show()
+    self.ui.rulerWidget.deleteButton().show()
+    self.ui.rulerWidget.setDeleteAllControlPointsOptionVisible(True)
+    self.ui.rulerWidget.setCurrentNode(lineNode)
+    self.ui.rulerWidget.setMRMLScene(slicer.mrmlScene)
+
+
   def cleanup(self):
     pass
 
@@ -143,26 +154,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
       + "QCheckBox::indicator:checked{image: url(" + self.onIconPath + "); } \n"
       + "QCheckBox::indicator{width: 50px;height: 25px;}\n")
 
-  def addLayoutButton(self, layoutID, buttonAction, toolTip, imageFileName, layoutDiscription):
-    layoutManager = slicer.app.layoutManager()
-    layoutManager.layoutLogic().GetLayoutNode().AddLayoutDescription(layoutID, layoutDiscription)
-
-    viewToolBar = slicer.util.mainWindow().findChild('QToolBar', 'ViewToolBar')
-    layoutMenu = viewToolBar.widgetForAction(viewToolBar.actions()[0]).menu()
-    layoutSwitchActionParent = layoutMenu
-    # use `layoutMenu` to add inside layout list, use `viewToolBar` to add next the standard layout list
-    layoutSwitchAction = layoutSwitchActionParent.addAction(buttonAction) # add inside layout list
-
-    moduleDir = os.path.dirname(slicer.util.modulePath(self.__module__))
-    iconPath = os.path.join(moduleDir, 'Resources/Icons', imageFileName)
-    layoutSwitchAction.setIcon(qt.QIcon(iconPath))
-    layoutSwitchAction.setToolTip(toolTip)
-    layoutSwitchAction.connect('triggered()', lambda layoutId = layoutID: slicer.app.layoutManager().setLayout(layoutId))
-    layoutSwitchAction.setData(layoutID)
-
-
   def onSelect(self):
-    #Enable run BiteID button
     self.ui.runBiteIDButton.enabled = bool ( self.ui.sourceModelSelector.currentNode() and self.ui.targetModelSelector.currentNode())
     self.ui.switchSettingsButton.enabled = bool ( self.ui.sourceModelSelector.currentNode() and self.ui.targetModelSelector.currentNode())
 
@@ -206,12 +198,12 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     self.ui.partialFitness.value = self.partialFitness*100
 
     # Custom color for progress bar
-    color_pallete = ['#d2f8d2', '#e6e600', '#f08080']
+    color_pallete = ['#3cae3c', '#e6e600', '#f08080']#['#d2f8d2', '#e6e600', '#f08080']
     color_total = color_pallete[0] if self.fitness > 0.3 else color_pallete[1] if self.fitness > 0.15 else color_pallete[2]
     color_partial = color_pallete[0] if self.partialFitness > 0.8 else color_pallete[1] if self.partialFitness > 0.4 else color_pallete[2]
     self.ui.totalFitness.setStyleSheet(f"""
       QProgressBar{{
-          border: 2px solid grey;
+          border: 1px solid grey;
           border-radius: 5px;
           text-align: center
       }}
@@ -219,12 +211,12 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
       QProgressBar::chunk {{
           background-color: {color_total};
           width: 10px;
-          margin: 1px;
+          margin: 0px;
       }}
       """)
     self.ui.partialFitness.setStyleSheet(f"""
       QProgressBar{{
-          border: 2px solid grey;
+          border: 1px solid grey;
           border-radius: 5px;
           text-align: center
       }}
@@ -232,7 +224,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
       QProgressBar::chunk {{
           background-color: {color_partial};
           width: 10px;
-          margin: 1px;
+          margin: 0px;
       }}
       """)
     #
@@ -281,6 +273,9 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     self.ui.showSourceModelCheckBox.enabled = True
     self.ui.showSourceModelCheckBox.checked = 1
 
+    self.ui.signedDistanceCheckBox.enabled = True
+    self.ui.signedDistanceCheckBox.checked = 0
+
 
   def onSwitchSettingsButton(self):
     self.ui.tabsWidget.setCurrentWidget(self.ui.advancedSettingsTab)
@@ -303,6 +298,21 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
         self.sourceModelNode.GetDisplayNode().SetVisibility(False)
     except:
       self.ui.showSourceModelCheckBox.enabled = False
+  
+  def onshowSignedDistanceMapCheckBox(self):
+    logic = BiteIDLogic()
+    try:
+      if self.ui.signedDistanceCheckBox.isChecked():
+        self.targetModelNode.GetDisplayNode().SetVisibility(False)
+        self.sourceModelNode = logic.signedDistancePainting(self.sourceModelNode, self.targetModelNode, self.voxelSize)
+      else:
+        self.sourceModelNode.GetDisplayNode().SetVisibility(True)
+        self.sourceModelNode.GetDisplayNode().SetScalarVisibility(False)
+        red = [1,0,0]
+        self.sourceModelNode.GetDisplayNode().SetColor(red)
+        self.targetModelNode.GetDisplayNode().SetVisibility(True)
+    except:
+      self.ui.signedDistanceCheckBox.enabled = False
 
   def onApplyLandmarkMulti(self):
     table = self.tableNode.GetTable()
@@ -393,7 +403,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
 
     else:
       self.ui.sourceModelMultiSelector.filters  = ctk.ctkPathLineEdit().Files
-      self.ui.sourceModelMultiSelector.nameFilters  = ["*.ply *.obj *.vtk"]
+      self.ui.sourceModelMultiSelector.nameFilters  = ["*.ply *.obj *.vtk *.stl"]
       self.ui.sourceModelMultiSelector.toolTip = "Select the query model"
 
 
@@ -495,8 +505,25 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
     modelNode.SetAndObservePolyData(glyph.GetOutput())
     modelNode.GetDisplayNode().SetColor(nodeColor)
     return modelNode
+  
+  def signedDistancePainting(self, sourceModel, targetModel, voxelSize):
+    #get distance
+    distance_filter = vtk.vtkDistancePolyDataFilter()
+    distance_filter.SetInputData(0, sourceModel.GetPolyData())
+    distance_filter.SetInputData(1, targetModel.GetPolyData())
+    distance_filter.Update()
+    #display
+    sourceModel.SetAndObservePolyData(distance_filter.GetOutput())
+    sourceModel.GetDisplayNode().SetActiveScalarName('Distance')
+    sourceModel.GetDisplayNode().SetAndObserveColorNodeID(slicer.util.getNode('fMRIPA').GetID())
+    sourceModel.GetDisplayNode().SetScalarVisibility(True)
 
+    # Set scalar range
+    sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
+    sourceModel.GetDisplayNode().SetScalarRange(-voxelSize, voxelSize)
 
+    return sourceModel
+  
   def displayMesh(self, polydata, nodeName, nodeColor):
     modelNode=slicer.mrmlScene.GetFirstNodeByName(nodeName)
     if modelNode is None:  # if there is no node with this name, create with display node
@@ -554,6 +581,8 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
   def execute_global_registration(self, source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size, distance_threshold_factor, maxIter, confidence):
     from open3d import pipelines
+    from open3d import utility
+    utility.random.seed(99)
     registration = pipelines.registration
     distance_threshold = voxel_size * distance_threshold_factor
     print(":: RANSAC registration on downsampled point clouds.")
@@ -569,7 +598,7 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
        registration.TransformationEstimationPointToPoint(False),
         3, [
             registration.CorrespondenceCheckerBasedOnEdgeLength(
-                0.9),
+                0.9 ),
             registration.CorrespondenceCheckerBasedOnDistance(
                 distance_threshold)
         ], registration.RANSACConvergenceCriteria(maxIter, confidence))
@@ -584,6 +613,8 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
 
   def refine_registration(self, source, target, voxel_size, result_ransac, ICPThreshold_factor):
     from open3d import pipelines
+    from open3d import utility
+    utility.random.seed(99)
     registration = pipelines.registration
     distance_threshold = voxel_size * ICPThreshold_factor
     print(":: Point-to-plane ICP registration is applied on original point")
