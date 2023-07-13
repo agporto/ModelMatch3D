@@ -138,12 +138,16 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     self.ui.potentialMatches.resizeColumnsToContents()
     self.ui.potentialMatches.horizontalHeader().setSectionResizeMode(qt.QHeaderView.Stretch)
 
-    lineNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', "L")
+    self.lineNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', "L")
+    
     self.ui.rulerWidget.placeButton().show()
     self.ui.rulerWidget.deleteButton().show()
     self.ui.rulerWidget.setDeleteAllControlPointsOptionVisible(True)
-    self.ui.rulerWidget.setCurrentNode(lineNode)
+    self.ui.rulerWidget.setCurrentNode(self.lineNode)
     self.ui.rulerWidget.setMRMLScene(slicer.mrmlScene)
+    self.lineNode.GetDisplayNode().SetVisibility(True)
+    #self.ui.rulerWidget.show()
+
 
 
   def cleanup(self):
@@ -275,6 +279,9 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
 
     self.ui.signedDistanceCheckBox.enabled = True
     self.ui.signedDistanceCheckBox.checked = 0
+    self.lineNode.GetDisplayNode().SetVisibility(True)
+
+
 
 
   def onSwitchSettingsButton(self):
@@ -312,7 +319,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
         self.sourceModelNode.GetDisplayNode().SetColor(red)
         self.targetModelNode.GetDisplayNode().SetVisibility(True)
     except:
-      self.ui.signedDistanceCheckBox.enabled = False
+      pass
 
   def onApplyLandmarkMulti(self):
     table = self.tableNode.GetTable()
@@ -512,6 +519,24 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
     distance_filter.SetInputData(0, sourceModel.GetPolyData())
     distance_filter.SetInputData(1, targetModel.GetPolyData())
     distance_filter.Update()
+
+
+    # Get distance values from the filter output
+    distance_data = distance_filter.GetOutput().GetPointData().GetScalars()
+
+    # Convert distance data to a numpy array
+    distance_array = vtk_np.vtk_to_numpy(distance_data)
+
+    # Calculate mean and standard deviation
+    mean_distance = np.mean(distance_array)
+    std_distance = np.std(distance_array)
+
+    # Print the mean and standard deviation
+    print("Mean distance:", mean_distance)
+    print("Standard deviation:", std_distance)
+
+
+
     #display
     sourceModel.SetAndObservePolyData(distance_filter.GetOutput())
     sourceModel.GetDisplayNode().SetActiveScalarName('Distance')
@@ -523,6 +548,50 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
     sourceModel.GetDisplayNode().SetScalarRange(-voxelSize, voxelSize)
 
     return sourceModel
+  
+  def signedDistancePainting2(self, sourceModel, targetModel, voxelSize):
+      from open3d import geometry, utility
+
+      # Convert source and target models to Open3D point clouds
+      sourcePoints = slicer.util.arrayFromModelPoints(sourceModel)
+      source = geometry.PointCloud()
+      source.points = utility.Vector3dVector(sourcePoints)
+      targetPoints = slicer.util.arrayFromModelPoints(targetModel)
+      target = geometry.PointCloud()
+      target.points = utility.Vector3dVector(targetPoints)
+
+      # Compute point cloud distance using Open3D
+      distance = source.compute_point_cloud_distance(target)
+      distance = np.asarray(distance)
+
+      mean = np.mean(distance)
+      distance = distance - mean
+      std = np.std(distance)
+      print("Mean: " + str(mean))
+      print("Std: " + str(std))
+
+
+      # Create a vtkDoubleArray and set the scalar values
+      distanceArray = vtk.vtkDoubleArray()
+      distanceArray.SetName("Distance")
+      distanceArray.SetNumberOfComponents(1)
+      distanceArray.SetArray(distance, distance.size, 1)
+
+      # Set the scalar array to the point data of the source model
+      sourceModel.GetPolyData().GetPointData().SetScalars(distanceArray)
+
+      # Set up the display properties for the source model node
+      sourceModel.GetDisplayNode().SetActiveScalarName("Distance")
+      sourceModel.GetDisplayNode().SetAndObserveColorNodeID(slicer.util.getNode("fMRIPA").GetID())
+      sourceModel.GetDisplayNode().SetScalarVisibility(True)
+
+      # Set scalar range
+      sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
+      sourceModel.GetDisplayNode().SetScalarRange(-voxelSize, voxelSize)
+
+      return sourceModel
+
+
   
   def displayMesh(self, polydata, nodeName, nodeColor):
     modelNode=slicer.mrmlScene.GetFirstNodeByName(nodeName)
