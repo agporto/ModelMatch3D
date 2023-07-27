@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>623</width>
-    <height>500</height>
+    <height>826</height>
    </rect>
   </property>
   <property name="maximumSize">
@@ -116,19 +116,6 @@
           <bool>false</bool>
          </property>
          <layout class="QFormLayout" name="runSingleALPACAWidgetLayout">
-          <item row="1" column="0" colspan="2">
-           <widget class="QPushButton" name="switchSettingsButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="toolTip">
-             <string>Switch the the Advanced Settings tab to change parameters and run/re-run ALPACA</string>
-            </property>
-            <property name="text">
-             <string>Change Settings</string>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="0" colspan="2">
            <widget class="QPushButton" name="runBiteIDButton">
             <property name="enabled">
@@ -139,6 +126,19 @@
             </property>
             <property name="text">
              <string>Run</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="2">
+           <widget class="QPushButton" name="switchSettingsButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Switch the the Advanced Settings tab to change parameters and run/re-run ALPACA</string>
+            </property>
+            <property name="text">
+             <string>Change Settings</string>
             </property>
            </widget>
           </item>
@@ -220,6 +220,16 @@
             </property>
            </widget>
           </item>
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="signedDistanceCheckBox">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Display heatmap</string>
+            </property>
+           </widget>
+          </item>
           <item row="3" column="0" colspan="2">
            <spacer name="verticalSpacer">
             <property name="orientation">
@@ -232,16 +242,6 @@
              </size>
             </property>
            </spacer>
-          </item>
-          <item row="2" column="0">
-           <widget class="QCheckBox" name="signedDistanceCheckBox">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>Display heatmap</string>
-            </property>
-           </widget>
           </item>
          </layout>
         </widget>

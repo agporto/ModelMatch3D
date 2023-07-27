@@ -311,7 +311,9 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     try:
       if self.ui.signedDistanceCheckBox.isChecked():
         self.targetModelNode.GetDisplayNode().SetVisibility(False)
-        self.sourceModelNode = logic.signedDistancePainting(self.sourceModelNode, self.targetModelNode, self.voxelSize)
+        #self.sourceModelNode = logic.signedDistancePainting(self.sourceModelNode, self.targetModelNode, self.voxelSize)
+        #self.sourceModelNode = logic.signedDistancePainting2(self.sourceModelNode, self.targetModelNode, self.voxelSize)
+        self.sourceModelNode = logic.signedDistancePainting2(self.sourceModelNode, self.targetModelNode, self.voxelSize)
       else:
         self.sourceModelNode.GetDisplayNode().SetVisibility(True)
         self.sourceModelNode.GetDisplayNode().SetScalarVisibility(False)
@@ -534,6 +536,9 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
     # Print the mean and standard deviation
     print("Mean distance:", mean_distance)
     print("Standard deviation:", std_distance)
+    print("Max distance:", distance_array.max())
+    print("Min distance:", distance_array.min())
+    
 
 
 
@@ -563,14 +568,16 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
       # Compute point cloud distance using Open3D
       distance = source.compute_point_cloud_distance(target)
       distance = np.asarray(distance)
+      distance = np.log(distance + 1) 
 
       mean = np.mean(distance)
-      distance = distance - mean
       std = np.std(distance)
       print("Mean: " + str(mean))
       print("Std: " + str(std))
+      print(distance.max())
+      print(distance.min())
 
-
+      distance = -distance
       # Create a vtkDoubleArray and set the scalar values
       distanceArray = vtk.vtkDoubleArray()
       distanceArray.SetName("Distance")
@@ -582,16 +589,62 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
 
       # Set up the display properties for the source model node
       sourceModel.GetDisplayNode().SetActiveScalarName("Distance")
+      sourceModel.GetDisplayNode().SetAndObserveColorNodeID(slicer.util.getNode("Plasma").GetID())
+      sourceModel.GetDisplayNode().SetScalarVisibility(True)
+
+      # Set scalar range
+      sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
+      sourceModel.GetDisplayNode().SetScalarRange(distance.min(), distance.max())
+
+      return sourceModel
+
+
+
+  def signedDistancePainting3(self, sourceModel, targetModel, voxelSize):
+      from open3d import geometry, utility, t, core
+
+      source = slicer.util.arrayFromModelPoints(sourceModel)
+      target = self.convertVtkPolyToOpen3d(targetModel.GetPolyData())
+      target_t = t.geometry.TriangleMesh.from_legacy(target)
+
+      # Create a scene and add the point clouds
+      scene = t.geometry.RaycastingScene()
+      _ = scene.add_triangles(target_t)
+
+      signed_distance = scene.compute_signed_distance(source)
+      signed_distance = signed_distance.numpy()
+  
+      mean = np.mean(signed_distance)
+      signed_distance = signed_distance - mean
+      std = np.std(signed_distance)
+
+      print("Mean: " + str(mean))
+      print("Std: " + str(std))
+      print(signed_distance.max())
+      print(signed_distance.min())
+      signed_distance = signed_distance.astype(np.float64)
+      signed_distance = -signed_distance
+      # Create a vtkDoubleArray and set the scalar values
+      distanceArray = vtk.vtkDoubleArray()
+      distanceArray.SetName("Distance")
+      distanceArray.SetNumberOfComponents(1)
+      distanceArray.SetArray(signed_distance, signed_distance.size, 1)
+
+      # Set the scalar array to the point data of the source model
+      sourceModel.GetPolyData().GetPointData().SetScalars(distanceArray)
+
+      # Set up the display properties for the source model node
+      sourceModel.GetDisplayNode().SetActiveScalarName("Distance")
       sourceModel.GetDisplayNode().SetAndObserveColorNodeID(slicer.util.getNode("fMRIPA").GetID())
       sourceModel.GetDisplayNode().SetScalarVisibility(True)
 
       # Set scalar range
       sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
-      sourceModel.GetDisplayNode().SetScalarRange(-voxelSize, voxelSize)
-
+      sourceModel.GetDisplayNode().SetScalarRange(-voxelSize*1.5, voxelSize*1.5)
       return sourceModel
 
 
+    
   
   def displayMesh(self, polydata, nodeName, nodeColor):
     modelNode=slicer.mrmlScene.GetFirstNodeByName(nodeName)
@@ -628,7 +681,29 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
     target_down, target_fpfh = self.preprocess_point_cloud(target, voxel_size, parameters["normalSearchRadius"], parameters["FPFHSearchRadius"])
     return source_down, target_down, source_fpfh, target_fpfh, voxel_size
 
+  def convertVtkPolyToOpen3d(self, polydata):
+    import open3d as o3d
+    import vtk
+    vtk_polydata = polydata
+    o3d_mesh = o3d.geometry.TriangleMesh()
 
+    points = vtk_polydata.GetPoints()
+    vertices = []
+    for i in range(points.GetNumberOfPoints()):
+        vertex = points.GetPoint(i)
+        vertices.append(vertex)
+    o3d_mesh.vertices = o3d.utility.Vector3dVector(vertices)
+
+    triangles = vtk_polydata.GetPolys()
+    tri_indices = []
+    triangles.InitTraversal()
+    tri = vtk.vtkIdList()
+    while triangles.GetNextCell(tri):
+        if tri.GetNumberOfIds() == 3:
+            tri_indices.append([tri.GetId(0), tri.GetId(1), tri.GetId(2)])
+    o3d_mesh.triangles = o3d.utility.Vector3iVector(tri_indices)
+    return o3d_mesh
+  
   def preprocess_point_cloud(self, pcd, voxel_size, radius_normal_factor, radius_feature_factor):
     from open3d import geometry
     from open3d import pipelines
