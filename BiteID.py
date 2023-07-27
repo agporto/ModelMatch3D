@@ -311,9 +311,7 @@ class BiteIDWidget(ScriptedLoadableModuleWidget):
     try:
       if self.ui.signedDistanceCheckBox.isChecked():
         self.targetModelNode.GetDisplayNode().SetVisibility(False)
-        #self.sourceModelNode = logic.signedDistancePainting(self.sourceModelNode, self.targetModelNode, self.voxelSize)
-        #self.sourceModelNode = logic.signedDistancePainting2(self.sourceModelNode, self.targetModelNode, self.voxelSize)
-        self.sourceModelNode = logic.signedDistancePainting2(self.sourceModelNode, self.targetModelNode, self.voxelSize)
+        self.sourceModelNode = logic.signedDistancePainting(self.sourceModelNode, self.targetModelNode, self.voxelSize)
       else:
         self.sourceModelNode.GetDisplayNode().SetVisibility(True)
         self.sourceModelNode.GetDisplayNode().SetScalarVisibility(False)
@@ -515,46 +513,8 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
     modelNode.GetDisplayNode().SetColor(nodeColor)
     return modelNode
   
-  def signedDistancePainting(self, sourceModel, targetModel, voxelSize):
-    #get distance
-    distance_filter = vtk.vtkDistancePolyDataFilter()
-    distance_filter.SetInputData(0, sourceModel.GetPolyData())
-    distance_filter.SetInputData(1, targetModel.GetPolyData())
-    distance_filter.Update()
-
-
-    # Get distance values from the filter output
-    distance_data = distance_filter.GetOutput().GetPointData().GetScalars()
-
-    # Convert distance data to a numpy array
-    distance_array = vtk_np.vtk_to_numpy(distance_data)
-
-    # Calculate mean and standard deviation
-    mean_distance = np.mean(distance_array)
-    std_distance = np.std(distance_array)
-
-    # Print the mean and standard deviation
-    print("Mean distance:", mean_distance)
-    print("Standard deviation:", std_distance)
-    print("Max distance:", distance_array.max())
-    print("Min distance:", distance_array.min())
-    
-
-
-
-    #display
-    sourceModel.SetAndObservePolyData(distance_filter.GetOutput())
-    sourceModel.GetDisplayNode().SetActiveScalarName('Distance')
-    sourceModel.GetDisplayNode().SetAndObserveColorNodeID(slicer.util.getNode('fMRIPA').GetID())
-    sourceModel.GetDisplayNode().SetScalarVisibility(True)
-
-    # Set scalar range
-    sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
-    sourceModel.GetDisplayNode().SetScalarRange(-voxelSize, voxelSize)
-
-    return sourceModel
   
-  def signedDistancePainting2(self, sourceModel, targetModel, voxelSize):
+  def signedDistancePainting(self, sourceModel, targetModel, voxelSize):
       from open3d import geometry, utility
 
       # Convert source and target models to Open3D point clouds
@@ -569,14 +529,6 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
       distance = source.compute_point_cloud_distance(target)
       distance = np.asarray(distance)
       distance = np.log(distance + 1) 
-
-      mean = np.mean(distance)
-      std = np.std(distance)
-      print("Mean: " + str(mean))
-      print("Std: " + str(std))
-      print(distance.max())
-      print(distance.min())
-
       distance = -distance
       # Create a vtkDoubleArray and set the scalar values
       distanceArray = vtk.vtkDoubleArray()
@@ -596,55 +548,7 @@ class BiteIDLogic(ScriptedLoadableModuleLogic):
       sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
       sourceModel.GetDisplayNode().SetScalarRange(distance.min(), distance.max())
 
-      return sourceModel
-
-
-
-  def signedDistancePainting3(self, sourceModel, targetModel, voxelSize):
-      from open3d import geometry, utility, t, core
-
-      source = slicer.util.arrayFromModelPoints(sourceModel)
-      target = self.convertVtkPolyToOpen3d(targetModel.GetPolyData())
-      target_t = t.geometry.TriangleMesh.from_legacy(target)
-
-      # Create a scene and add the point clouds
-      scene = t.geometry.RaycastingScene()
-      _ = scene.add_triangles(target_t)
-
-      signed_distance = scene.compute_signed_distance(source)
-      signed_distance = signed_distance.numpy()
-  
-      mean = np.mean(signed_distance)
-      signed_distance = signed_distance - mean
-      std = np.std(signed_distance)
-
-      print("Mean: " + str(mean))
-      print("Std: " + str(std))
-      print(signed_distance.max())
-      print(signed_distance.min())
-      signed_distance = signed_distance.astype(np.float64)
-      signed_distance = -signed_distance
-      # Create a vtkDoubleArray and set the scalar values
-      distanceArray = vtk.vtkDoubleArray()
-      distanceArray.SetName("Distance")
-      distanceArray.SetNumberOfComponents(1)
-      distanceArray.SetArray(signed_distance, signed_distance.size, 1)
-
-      # Set the scalar array to the point data of the source model
-      sourceModel.GetPolyData().GetPointData().SetScalars(distanceArray)
-
-      # Set up the display properties for the source model node
-      sourceModel.GetDisplayNode().SetActiveScalarName("Distance")
-      sourceModel.GetDisplayNode().SetAndObserveColorNodeID(slicer.util.getNode("fMRIPA").GetID())
-      sourceModel.GetDisplayNode().SetScalarVisibility(True)
-
-      # Set scalar range
-      sourceModel.GetDisplayNode().SetScalarRangeFlag(0)
-      sourceModel.GetDisplayNode().SetScalarRange(-voxelSize*1.5, voxelSize*1.5)
-      return sourceModel
-
-
-    
+      return sourceModel   
   
   def displayMesh(self, polydata, nodeName, nodeColor):
     modelNode=slicer.mrmlScene.GetFirstNodeByName(nodeName)
