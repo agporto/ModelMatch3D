@@ -1,6 +1,6 @@
-# BiteID - Individual Identification via Dental Models
+# ModelMatch3D - Individual Identification via Dental Models
 
-BiteID is a 3D Slicer module that enables individual identification based on 3D dental models of the mandible or maxilla. It works by automatically registering two dental scans, establishing point correspondences between them, and computing metrics of overall similarity for individual identification purposes.
+ModelMatch3D is a 3D Slicer module that enables individual identification based on 3D dental models of the mandible or maxilla. It works by automatically registering two dental scans, establishing point correspondences between them, and computing metrics of overall similarity for individual identification purposes.
 
 ## Features
 
@@ -49,4 +49,4 @@ Contributions to this project are welcome. Please open a pull request with your 
 
 ## Questions
 
-If you have any questions or issues, please open an [issue](https://github.com/agporto/BiteID/issues).
+If you have any questions or issues, please open an [issue](https://github.com/agporto/ModelMatch3D/issues).
